@@ -14,7 +14,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost/gc-clean/api/login.php", {
+      const res = await fetch("http://localhost/gc-clean-api/api/login.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -23,10 +23,7 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (data.success) {
-        // 🧠 Save user info locally
         localStorage.setItem("user", JSON.stringify(data.user));
-
-        // ✅ Redirect to home page
         router.push("/home");
       } else {
         alert(data.message || "Invalid credentials.");
@@ -40,27 +37,27 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-amber-50 to-white">
-      <div className="flex flex-col md:flex-row bg-white shadow-lg rounded-2xl overflow-hidden max-w-5xl w-full">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-amber-50 to-white px-4">
+      <div className="flex flex-col md:flex-row bg-white/90 backdrop-blur-md shadow-2xl rounded-3xl overflow-hidden max-w-5xl w-full">
         {/* LEFT SIDE */}
-        <div className="w-full md:w-1/2 bg-gradient-to-br from-amber-50 to-white p-10 flex flex-col justify-center">
+        <div className="w-full md:w-1/2 bg-gradient-to-br from-amber-50 to-white p-12 flex flex-col justify-center">
           <div className="flex items-center mb-6">
-            <div className="bg-gradient-to-r from-green-500 to-yellow-400 text-white font-bold rounded-xl w-12 h-12 flex items-center justify-center">
+            <div className="bg-gradient-to-r from-green-500 to-yellow-400 text-white font-bold rounded-xl w-14 h-14 flex items-center justify-center text-lg shadow-md">
               GC
             </div>
-            <div className="ml-3">
-              <h1 className="text-xl font-bold text-green-700">Gordon College</h1>
-              <p className="text-sm text-yellow-600 font-semibold">GC-Clean</p>
+            <div className="ml-4">
+              <h1 className="text-2xl font-bold text-green-700">Gordon College</h1>
+              <p className="text-sm text-yellow-600 font-semibold mt-1">GC-Clean</p>
             </div>
           </div>
 
-          <p className="text-gray-600 text-sm leading-relaxed">
+          <p className="text-gray-700 text-sm leading-relaxed mb-2">
             A comprehensive waste management app for Gordon College that helps track,
             manage, and optimize recycling programs while educating students about
             environmental responsibility.
           </p>
 
-          <p className="mt-3 text-sm text-gray-700">
+          <p className="mt-2 text-sm text-gray-800">
             Join our green initiative and{" "}
             <span className="text-yellow-600 font-semibold">earn rewards</span> for
             contributing to a cleaner campus environment.
@@ -68,19 +65,23 @@ export default function LoginPage() {
         </div>
 
         {/* RIGHT SIDE */}
-        <div className="w-full md:w-1/2 p-10 flex flex-col justify-center">
-          <h2 className="text-2xl font-semibold text-center mb-2">Welcome back</h2>
-          <p className="text-center text-gray-500 mb-6">
+        <div className="w-full md:w-1/2 p-12 flex flex-col justify-center">
+          <h2 className="text-3xl font-semibold text-center mb-3 text-green-700">
+            Welcome back
+          </h2>
+          <p className="text-center text-gray-500 mb-8">
             Enter your credentials to access your account
           </p>
 
-          <form className="space-y-4" onSubmit={handleLogin}>
+          <form className="space-y-5" onSubmit={handleLogin}>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Email</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email
+              </label>
               <input
                 type="email"
                 placeholder="Enter your email"
-                className="mt-1 w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+                className="mt-1 w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-400 focus:border-transparent outline-none transition-all"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -88,11 +89,13 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Password</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Password
+              </label>
               <input
                 type="password"
                 placeholder="Enter your password"
-                className="mt-1 w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+                className="mt-1 w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-400 focus:border-transparent outline-none transition-all"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -108,14 +111,14 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className={`w-full bg-gradient-to-r from-green-500 to-yellow-400 text-white font-semibold py-3 rounded-lg shadow-md transition ${
-                loading ? "opacity-70 cursor-not-allowed" : "hover:opacity-90"
+              className={`w-full bg-gradient-to-r from-green-500 to-yellow-400 text-white font-semibold py-3 rounded-xl shadow-lg transition transform ${
+                loading ? "opacity-70 cursor-not-allowed" : "hover:scale-105 hover:opacity-95"
               }`}
             >
               {loading ? "Signing in..." : "Sign In"}
             </button>
 
-            <p className="text-center text-sm text-gray-600">
+            <p className="text-center text-sm text-gray-600 mt-2">
               Don’t have an account?{" "}
               <Link
                 href="/register"

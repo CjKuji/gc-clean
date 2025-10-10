@@ -37,7 +37,7 @@ export default function Home() {
   // 📦 Fetch submitted trash
   const fetchSubmittedTrash = async (user_id) => {
     try {
-      const res = await fetch(`http://localhost/gc-clean/api/get_trash.php?user_id=${user_id}`);
+      const res = await fetch(`http://localhost/gc-clean-api-api/api/get_trash.php?user_id=${user_id}`);
       const data = await res.json();
       setSubmittedTrash(data);
       const total = data.reduce((sum, t) => sum + Number(t.points), 0);
@@ -59,7 +59,7 @@ export default function Home() {
     };
 
     try {
-      const res = await fetch("http://localhost/gc-clean/api/add_trash.php", {
+      const res = await fetch("http://localhost/gc-clean-api/api/add_trash.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newTrash),
@@ -81,7 +81,7 @@ export default function Home() {
   // ✏️ Edit submitted trash
   const handleEditTrash = async () => {
     try {
-      const res = await fetch("http://localhost/gc-clean/api/update_trash.php", {
+      const res = await fetch("http://localhost/gc-clean-api/api/update_trash.php", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editingTrash),
@@ -102,7 +102,7 @@ export default function Home() {
   // 🗑️ Delete trash
   const handleDeleteTrash = async (id) => {
     try {
-      const res = await fetch("http://localhost/gc-clean/api/delete_trash.php", {
+      const res = await fetch("http://localhost/gc-clean-api/api/delete_trash.php", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
@@ -126,7 +126,7 @@ export default function Home() {
       <nav className="w-full bg-gradient-to-r from-blue-600 to-blue-400 text-white py-3 shadow-md flex justify-between items-center px-6">
         <div className="flex items-center space-x-2">
           <img src="/logo.png" alt="Logo" className="w-8 h-8 rounded-full border border-white" />
-          <span className="font-semibold text-lg">GC-Clean</span>
+          <span className="font-semibold text-lg">gc-clean-api</span>
         </div>
         <div className="flex items-center space-x-6 text-sm">
           <a href="#" className="hover:underline">🏠 Home</a>
