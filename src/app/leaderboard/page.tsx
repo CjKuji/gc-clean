@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 interface LeaderboardRow {
@@ -17,11 +18,8 @@ export default function LeaderboardPage() {
 
   const departments = ["CCS", "CBA", "CHTM", "CEAS", "CAHS", "COE", "CCJE", "CON", "SHS"];
 
-  useEffect(() => {
-    fetchLeaderboard();
-  }, [deptFilter]);
-
-  async function fetchLeaderboard() {
+  // ✅ Wrap fetchLeaderboard in useCallback to fix missing dependency warning
+  const fetchLeaderboard = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -60,7 +58,11 @@ export default function LeaderboardPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [deptFilter]);
+
+  useEffect(() => {
+    fetchLeaderboard();
+  }, [fetchLeaderboard]);
 
   const getMedal = (rank: number) => {
     if (rank === 1) return "🥇";
@@ -74,15 +76,15 @@ export default function LeaderboardPage() {
       {/* Navbar */}
       <nav className="bg-green-600 text-white shadow-md">
         <div className="max-w-6xl mx-auto flex items-center justify-between p-4">
-          <a href="/" className="font-semibold text-lg tracking-wide">
+          <Link href="/" className="font-semibold text-lg tracking-wide">
             ♻️ GC Clean - Leaderboard
-          </a>
-          <a
+          </Link>
+          <Link
             href="/"
             className="bg-white text-green-600 px-4 py-1.5 rounded-md text-sm font-medium hover:bg-green-50 transition"
           >
             ⬅ Back
-          </a>
+          </Link>
         </div>
       </nav>
 
@@ -109,20 +111,26 @@ export default function LeaderboardPage() {
 
         {/* Leaderboard */}
         {loading ? (
-          <div className="text-center text-gray-500 py-12 animate-pulse">Loading leaderboard...</div>
+          <div className="text-center text-gray-500 py-12 animate-pulse">
+            Loading leaderboard...
+          </div>
         ) : rows.length === 0 ? (
-          <div className="text-center text-gray-500 py-12">No contributions yet.</div>
+          <div className="text-center text-gray-500 py-12">
+            No contributions yet.
+          </div>
         ) : (
           <>
-            {/* Podium for top 3 */}
+            {/* Podium for Top 3 */}
             <div className="grid grid-cols-3 gap-4 mb-10 text-center">
               {rows.slice(0, 3).map((row, i) => (
                 <div
                   key={row.id}
                   className={`flex flex-col items-center justify-end pb-4 rounded-xl shadow-md border bg-white hover:scale-105 transition-all duration-300 ${
-                    i === 0 ? "h-44 bg-gradient-to-t from-yellow-100 to-yellow-50" :
-                    i === 1 ? "h-40 bg-gradient-to-t from-gray-100 to-gray-50" :
-                    "h-36 bg-gradient-to-t from-amber-100 to-orange-50"
+                    i === 0
+                      ? "h-44 bg-gradient-to-t from-yellow-100 to-yellow-50"
+                      : i === 1
+                      ? "h-40 bg-gradient-to-t from-gray-100 to-gray-50"
+                      : "h-36 bg-gradient-to-t from-amber-100 to-orange-50"
                   }`}
                 >
                   <div className="text-3xl mb-1 animate-bounce">{getMedal(i + 1)}</div>
