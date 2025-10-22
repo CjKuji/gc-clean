@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import TrashModal from "@/components/trash-modal";
+
 
 interface TrashItem {
   id: string;
@@ -86,9 +88,9 @@ export default function HomePage() {
       {/* Navbar */}
       <nav className="w-full bg-green-600 text-white py-3 shadow-md">
         <div className="max-w-6xl mx-auto flex justify-between items-center px-6">
-          <a href="/" className="font-bold text-lg flex items-center space-x-2">
-            <span>♻️ GC Clean - Trash Tracker</span>
-          </a>
+         <Link href="/" className="font-bold text-lg flex items-center space-x-2">
+  <span>♻️ GC Clean - Trash Tracker</span>
+</Link>
           <div className="flex items-center gap-3 text-sm">
             {user && (
               <TrashModal
@@ -97,9 +99,9 @@ export default function HomePage() {
                 }
               />
             )}
-            <a href="/leaderboard" className="border border-white px-3 py-1 rounded hover:bg-green-700">
-              🏆 Leaderboard
-            </a>
+            <Link href="/leaderboard" className="border border-white px-3 py-1 rounded hover:bg-green-700">
+  🏆 Leaderboard
+</Link>
             <button
               onClick={handleLogout}
               className="border border-red-200 px-3 py-1 rounded hover:bg-red-600 hover:text-white transition"

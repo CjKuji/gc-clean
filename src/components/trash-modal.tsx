@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import Image from "next/image";
 
 interface TrashModalProps {
   onNew?: (newItem: any) => void;
@@ -310,29 +311,29 @@ export default function TrashModal({ onNew, editData, onClose }: TrashModalProps
                 </label>
               </label>
 
-              {/* Preview */}
-              {photoPreviews.length > 0 && (
-                <div className="flex flex-wrap gap-3 mt-2">
-                  {photoPreviews.map((src, idx) => (
-                    <div key={idx} className="relative group">
-                      <img
-                        src={src}
-                        alt="preview"
-                        className="h-16 w-16 object-cover rounded-lg border border-gray-300 cursor-pointer hover:opacity-80"
-                        onClick={() => window.open(src, "_blank")}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemovePhoto(src)}
-                        className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
-                        title="Remove photo"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+             {photoPreviews.length > 0 && (
+  <div className="flex flex-wrap gap-3 mt-2">
+    {photoPreviews.map((src, idx) => (
+      <div key={idx} className="relative group">
+        <Image
+          src={src}
+          alt={`preview-${idx}`}
+          width={500}
+          height={300}
+          className="rounded-md w-full h-40 object-cover"
+        />
+        <button
+          type="button"
+          onClick={() => handleRemovePhoto(src)}
+          className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+          title="Remove photo"
+        >
+          ✕
+        </button>
+      </div>
+    ))}
+  </div>
+)}
 
               {/* Submit only (no delete button) */}
               <button
