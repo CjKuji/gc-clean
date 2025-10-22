@@ -48,7 +48,7 @@ export default function HomePage() {
     if (!user) return;
     const fetchTrash = async () => {
       const { data, error } = await supabase
-        .from<TrashItem>("trash")
+        .from("trash")
         .select("*")
         .eq("user_id", user.id)
         .order("time", { ascending: false });
