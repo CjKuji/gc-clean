@@ -1,280 +1,242 @@
 "use client";
+
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import TrashModal from "@/components/trash-modal";
 
-export default function Home() {
-  const [user, setUser] = useState(null);
-  const [userPoints, setUserPoints] = useState(0);
-  const [showCategory, setShowCategory] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [submittedTrash, setSubmittedTrash] = useState([]);
-  const [editingTrash, setEditingTrash] = useState(null); // for editing modal
+interface TrashItem {
+  id: string;
+  trash_type: string;
+  floor: string;
+  room: string;
+  time: string; // ISO string
+  quantity?: number;
+  photo_urls?: string[];
+  user_id: string;
+}
 
-  // 🔹 Categories and Points
-  const categories = {
-    Plastic: ["Bottles", "Bags"],
-    Cans: ["Soda Can", "Beer Can"],
-    Glass: ["Jars", "Bottles"],
-  };
+export default function HomePage() {
+  const [trashList, setTrashList] = useState<TrashItem[]>([]);
+  const [user, setUser] = useState<any>(null);
+  const [editingTrash, setEditingTrash] = useState<TrashItem | null>(null);
+  const [deleteTrash, setDeleteTrash] = useState<TrashItem | null>(null);
+  const [photoModal, setPhotoModal] = useState<string[] | null>(null);
 
-  const points = {
-    Bottles: 10,
-    Bags: 5,
-    "Soda Can": 8,
-    "Beer Can": 10,
-    Jars: 12,
-  };
+  const router = useRouter();
 
-  // 🧠 Load user
+  // ✅ Auth
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const parsed = JSON.parse(storedUser);
-      setUser(parsed);
-      fetchSubmittedTrash(parsed.id);
-    }
-  }, []);
-
-  // 📦 Fetch submitted trash
-  const fetchSubmittedTrash = async (user_id) => {
-    try {
-      const res = await fetch(`http://localhost/gc-clean-api-api/api/get_trash.php?user_id=${user_id}`);
-      const data = await res.json();
-      setSubmittedTrash(data);
-      const total = data.reduce((sum, t) => sum + Number(t.points), 0);
-      setUserPoints(total);
-    } catch (err) {
-      console.error("Error fetching trash:", err);
-    }
-  };
-
-  // ♻️ Add trash
-  const handleItemClick = async (item) => {
-    if (!user) return alert("Please log in first!");
-
-    const newTrash = {
-      user_id: user.id,
-      category: selectedCategory,
-      item_name: item,
-      points: points[item],
+    const fetchSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) router.push("/login");
+      else setUser(data.session.user);
     };
+    fetchSession();
 
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) router.push("/login");
+      else setUser(session.user);
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, [router]);
+
+  // 🧹 Fetch trash
+  useEffect(() => {
+    if (!user) return;
+    const fetchTrash = async () => {
+      const { data, error } = await supabase
+        .from<TrashItem>("trash")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("time", { ascending: false });
+      if (error) console.error("Error fetching trash:", error.message);
+      else setTrashList(data || []);
+    };
+    fetchTrash();
+  }, [user]);
+
+  // 🗑 Delete
+  const handleDeleteConfirm = async () => {
+    if (!deleteTrash || !user) return;
     try {
-      const res = await fetch("http://localhost/gc-clean-api/api/add_trash.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newTrash),
-      });
-      const data = await res.json();
+      const { error } = await supabase
+        .from("trash")
+        .delete()
+        .eq("id", deleteTrash.id)
+        .eq("user_id", user.id);
 
-      if (data.success) {
-        fetchSubmittedTrash(user.id);
-        setSelectedCategory(null);
-        setShowCategory(false);
-      } else {
-        alert("Failed to submit trash.");
-      }
-    } catch (err) {
-      console.error(err);
+      if (error) throw error;
+      setTrashList(prev => prev.filter(t => t.id !== deleteTrash.id));
+      setDeleteTrash(null);
+    } catch (err: any) {
+      alert("Failed to delete: " + (err.message || err));
     }
   };
 
-  // ✏️ Edit submitted trash
-  const handleEditTrash = async () => {
-    try {
-      const res = await fetch("http://localhost/gc-clean-api/api/update_trash.php", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editingTrash),
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setEditingTrash(null);
-        fetchSubmittedTrash(user.id);
-      } else {
-        alert("Update failed");
-      }
-    } catch (err) {
-      console.error("Error updating trash:", err);
-    }
-  };
-
-  // 🗑️ Delete trash
-  const handleDeleteTrash = async (id) => {
-    try {
-      const res = await fetch("http://localhost/gc-clean-api/api/delete_trash.php", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setSubmittedTrash(submittedTrash.filter((t) => t.id !== id));
-        fetchSubmittedTrash(user.id);
-      } else {
-        alert("Delete failed");
-      }
-    } catch (err) {
-      console.error("Error deleting trash:", err);
-    }
+  // 🚪 Logout
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
   };
 
   return (
-    <div className="flex flex-col items-center min-h-screen bg-gray-50">
-      {/* 🧭 Top Nav */}
-      <nav className="w-full bg-gradient-to-r from-blue-600 to-blue-400 text-white py-3 shadow-md flex justify-between items-center px-6">
-        <div className="flex items-center space-x-2">
-          <img src="/logo.png" alt="Logo" className="w-8 h-8 rounded-full border border-white" />
-          <span className="font-semibold text-lg">gc-clean-api</span>
-        </div>
-        <div className="flex items-center space-x-6 text-sm">
-          <a href="#" className="hover:underline">🏠 Home</a>
-          <a href="#" className="hover:underline">🎁 Rewards</a>
-          <a href="#" className="hover:underline">👤 Profile</a>
-          <a href="/" className="hover:underline" onClick={() => localStorage.removeItem("user")}>
-            🔓 Logout
+    <div className="min-h-screen bg-gray-50">
+      {/* Navbar */}
+      <nav className="w-full bg-green-600 text-white py-3 shadow-md">
+        <div className="max-w-6xl mx-auto flex justify-between items-center px-6">
+          <a href="/" className="font-bold text-lg flex items-center space-x-2">
+            <span>♻️ GC Clean - Trash Tracker</span>
           </a>
+          <div className="flex items-center gap-3 text-sm">
+            {user && (
+              <TrashModal
+                onNew={(newItem: TrashItem) =>
+                  setTrashList(prev => [newItem, ...prev])
+                }
+              />
+            )}
+            <a href="/leaderboard" className="border border-white px-3 py-1 rounded hover:bg-green-700">
+              🏆 Leaderboard
+            </a>
+            <button
+              onClick={handleLogout}
+              className="border border-red-200 px-3 py-1 rounded hover:bg-red-600 hover:text-white transition"
+            >
+              🔓 Logout
+            </button>
+          </div>
         </div>
       </nav>
 
-      {/* 🧍‍♂️ Profile Card */}
-      <div className="mt-20 bg-white shadow-lg rounded-2xl p-8 w-full max-w-md text-center border border-gray-100">
-        <div className="flex flex-col items-center">
-          <div className="w-28 h-28 bg-blue-100 rounded-full flex items-center justify-center text-sm text-gray-500 font-medium mb-3">
-            Profile
+      {/* Content */}
+      <div className="max-w-6xl mx-auto mt-10 bg-white shadow-md rounded-xl p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-semibold text-gray-800">Collected Trash</h2>
+          <div className="text-green-700 font-semibold bg-green-50 px-4 py-2 rounded-lg shadow-sm">
+            🌎 Total Collected: {trashList.length} items
           </div>
-          <h2 className="text-xl font-semibold text-gray-800">{user?.first_name || "Guest"}</h2>
-          <p className="text-gray-500 text-sm">{user?.email || "Not logged in"}</p>
-          <p className="text-gray-600 text-sm mt-1">{user?.course || "—"}</p>
+        </div>
 
-          {/* 🌱 Points */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-400 text-white rounded-xl py-4 px-6 mt-6 shadow-md w-full">
-            <p className="text-sm font-medium uppercase">Earned Points</p>
-            <p className="text-3xl font-bold mt-1">{userPoints.toLocaleString()}</p>
-          </div>
-
-          {/* ♻️ Submit + View Buttons */}
-          <div className="flex flex-col gap-3 mt-8 w-full">
-            <button
-              onClick={() => setShowCategory(true)}
-              className="bg-gradient-to-r from-blue-600 to-blue-400 text-white px-6 py-2 rounded-lg font-medium shadow hover:opacity-90 transition"
-            >
-              Submit Trash
-            </button>
-
-            <button
-              onClick={() => {
-                if (submittedTrash.length === 0) {
-                  alert("No trash submitted yet.");
-                } else {
-                  const section = document.getElementById("submitted-trash");
-                  section?.scrollIntoView({ behavior: "smooth" });
-                }
-              }}
-              className="bg-gradient-to-r from-gray-200 to-gray-100 text-gray-700 px-6 py-2 rounded-lg font-medium shadow hover:bg-gray-300 transition"
-            >
-              View Submitted Trash ({submittedTrash.length})
-            </button>
-          </div>
+        {/* Table */}
+        <div className="overflow-x-auto rounded-lg border border-gray-200">
+          <table className="min-w-full text-sm">
+            <thead className="bg-green-100 text-green-800">
+              <tr>
+                <th className="px-4 py-2 text-left font-semibold">Type</th>
+                <th className="px-4 py-2 text-left font-semibold">Floor</th>
+                <th className="px-4 py-2 text-left font-semibold">Room</th>
+                <th className="px-4 py-2 text-left font-semibold">Time</th>
+                <th className="px-4 py-2 text-left font-semibold">Photo</th>
+                <th className="px-4 py-2 text-center font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trashList.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-6 text-gray-500">
+                    No records found. Start by submitting trash!
+                  </td>
+                </tr>
+              ) : (
+                trashList.map(item => (
+                  <tr key={item.id} className="border-t hover:bg-gray-50 transition">
+                    <td className="px-4 py-3 text-gray-700">{item.trash_type}</td>
+                    <td className="px-4 py-3 text-gray-700">{item.floor}</td>
+                    <td className="px-4 py-3 text-gray-700">{item.room}</td>
+                    <td className="px-4 py-3 text-gray-700">{new Date(item.time).toLocaleString()}</td>
+                    <td className="px-4 py-3">
+                      {item.photo_urls?.length ? (
+                        <button
+                          onClick={() => setPhotoModal(item.photo_urls!)}
+                          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs font-medium transition"
+                        >
+                          View Photos ({item.photo_urls.length})
+                        </button>
+                      ) : (
+                        <span className="text-gray-400 text-sm">No photo</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center flex justify-center gap-2">
+                      <button
+                        onClick={() => setEditingTrash(item)}
+                        className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs font-medium transition"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => setDeleteTrash(item)}
+                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs font-medium transition"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* 🧾 Submitted Trash List */}
-      {submittedTrash.length > 0 && (
-        <div id="submitted-trash" className="mt-10 bg-white shadow-lg rounded-2xl p-6 w-full max-w-md border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4 text-center">Submitted Trash</h2>
-          <ul className="space-y-3">
-            {submittedTrash.map((trash) => (
-              <li key={trash.id} className="flex justify-between items-center bg-blue-50 rounded-lg px-4 py-3 text-sm">
-                <div>
-                  <p className="font-semibold text-gray-700">
-                    {trash.item_name} ({trash.category})
-                  </p>
-                  <p className="text-gray-500 text-xs">
-                    +{trash.points} pts • {new Date(trash.submitted_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => setEditingTrash(trash)}
-                    className="text-blue-600 text-xs hover:underline"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDeleteTrash(trash.id)}
-                    className="text-red-500 text-xs hover:underline"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* 🧩 Category Modal */}
-      {showCategory && !selectedCategory && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowCategory(false)}>
-          <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-bold mb-4">Select Category</h2>
-            {Object.keys(categories).map((cat) => (
-              <button key={cat} className="block w-full mb-2 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition" onClick={() => setSelectedCategory(cat)}>
-                {cat}
-              </button>
-            ))}
-            <button onClick={() => setShowCategory(false)} className="mt-2 text-sm text-gray-500 hover:underline">
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 🧃 Item Modal */}
-      {selectedCategory && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setSelectedCategory(null)}>
-          <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-bold mb-4">Select {selectedCategory} Item</h2>
-            {categories[selectedCategory].map((item) => (
-              <button key={item} className="block w-full mb-2 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition" onClick={() => handleItemClick(item)}>
-                {item}
-              </button>
-            ))}
-            <button className="mt-2 text-sm text-gray-500 hover:underline" onClick={() => setSelectedCategory(null)}>
-              Back
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ✏️ Edit Trash Modal */}
+      {/* Trash Modal for Edit */}
       {editingTrash && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setEditingTrash(null)}>
-          <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-bold mb-4">Edit Submitted Trash</h2>
-            <input
-              type="text"
-              className="w-full p-2 border rounded mb-3"
-              value={editingTrash.item_name}
-              onChange={(e) => setEditingTrash({ ...editingTrash, item_name: e.target.value })}
-            />
-            <input
-              type="number"
-              className="w-full p-2 border rounded mb-3"
-              value={editingTrash.points}
-              onChange={(e) => setEditingTrash({ ...editingTrash, points: e.target.value })}
-            />
+        <TrashModal
+          editData={editingTrash}
+          onNew={(updated) =>
+            setTrashList(prev => prev.map(t => (t.id === updated.id ? updated : t)))
+          }
+          onClose={() => setEditingTrash(null)}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteTrash && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+          <div className="bg-white p-6 rounded-xl shadow-xl max-w-sm w-full text-center">
+            <h2 className="text-xl font-semibold mb-4">🗑️ Confirm Delete</h2>
+            <p className="mb-4 text-gray-700">Are you sure you want to delete this record?</p>
+            <div className="flex justify-center gap-4">
+              <button
+                onClick={handleDeleteConfirm}
+                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setDeleteTrash(null)}
+                className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Photo Modal */}
+      {photoModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4 py-6">
+          <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full p-6 overflow-auto relative">
             <button
-              onClick={handleEditTrash}
-              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition w-full"
+              onClick={() => setPhotoModal(null)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-red-500 text-2xl font-bold"
             >
-              Save Changes
+              ✕
             </button>
-            <button className="mt-2 text-sm text-gray-500 hover:underline" onClick={() => setEditingTrash(null)}>
-              Cancel
-            </button>
+            <h2 className="text-xl font-semibold mb-6 text-center text-gray-800">🖼 Trash Photos</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {photoModal.map((url, idx) => (
+                <img
+                  key={idx}
+                  src={url}
+                  alt={`Trash ${idx + 1}`}
+                  className="w-full h-48 object-cover rounded-lg cursor-pointer shadow-sm hover:opacity-80 transition"
+                  onClick={() => window.open(url, "_blank")}
+                />
+              ))}
+            </div>
           </div>
         </div>
       )}
