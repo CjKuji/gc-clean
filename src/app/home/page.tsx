@@ -1,32 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import TrashModal from "@/components/trash-modal";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
-interface TrashItem {
+interface AttendanceRecord {
   id: string;
-  trash_type: string;
-  floor: string;
-  room: string;
-  time: string; // ISO string
-  quantity?: number;
-  photo_urls?: string[];
+  class_name: string;
+  date: string;
+  status: "Present" | "Absent" | "Missed";
+  notes?: string;
   user_id: string;
 }
 
-export default function HomePage() {
-  const [trashList, setTrashList] = useState<TrashItem[]>([]);
+const COLORS = ["#16a34a", "#dc2626", "#facc15"]; // green, red, yellow
+
+export default function StudentDashboard() {
   const [user, setUser] = useState<any>(null);
-  const [editingTrash, setEditingTrash] = useState<TrashItem | null>(null);
-  const [deleteTrash, setDeleteTrash] = useState<TrashItem | null>(null);
-  const [photoModal, setPhotoModal] = useState<string[] | null>(null);
+  const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const router = useRouter();
 
-  // ✅ Auth check
+  // Auth check
   useEffect(() => {
     const fetchSession = async () => {
       const { data } = await supabase.auth.getSession();
@@ -43,225 +38,159 @@ export default function HomePage() {
     return () => listener.subscription.unsubscribe();
   }, [router]);
 
-  // ✅ Fetch user trash list
+  // Fetch attendance
   useEffect(() => {
     if (!user) return;
-    const fetchTrash = async () => {
+    const fetchRecords = async () => {
       const { data, error } = await supabase
-        .from("trash")
+        .from("attendance")
         .select("*")
         .eq("user_id", user.id)
-        .order("time", { ascending: false });
+        .order("date", { ascending: false });
 
-      if (error) console.error("Error fetching trash:", error.message);
-      else setTrashList(data || []);
+      if (error) console.error("Error fetching records:", error.message);
+      else setRecords(data || []);
     };
-    fetchTrash();
+    fetchRecords();
   }, [user]);
 
-  // ✅ Delete handler
-  const handleDeleteConfirm = async () => {
-    if (!deleteTrash || !user) return;
-    try {
-      const { error } = await supabase
-        .from("trash")
-        .delete()
-        .eq("id", deleteTrash.id)
-        .eq("user_id", user.id);
+  const totalPresent = records.filter(r => r.status === "Present").length;
+  const totalAbsent = records.filter(r => r.status === "Absent").length;
+  const totalMissed = records.filter(r => r.status === "Missed").length;
+  const totalClasses = records.length;
 
-      if (error) throw error;
-      setTrashList(prev => prev.filter(t => t.id !== deleteTrash.id));
-      setDeleteTrash(null);
-    } catch (err: any) {
-      alert("Failed to delete: " + (err.message || err));
-    }
-  };
+  const chartData = [
+    { name: "Present", value: totalPresent },
+    { name: "Absent", value: totalAbsent },
+    { name: "Missed", value: totalMissed },
+  ];
 
-  // ✅ Logout
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/login");
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navbar */}
-      <nav className="w-full bg-green-600 text-white py-3 shadow-md">
-        <div className="max-w-6xl mx-auto flex justify-between items-center px-6">
-          <Link href="/" className="font-bold text-lg flex items-center space-x-2">
-            <span>♻️ GC Clean - Trash Tracker</span>
-          </Link>
-          <div className="flex items-center gap-3 text-sm">
-            {user && (
-              <TrashModal
-                onNew={(newItem: TrashItem) =>
-                  setTrashList(prev => [newItem, ...prev])
-                }
-              />
-            )}
-            <Link
-              href="/leaderboard"
-              className="border border-white px-3 py-1 rounded hover:bg-green-700 transition"
-            >
-              🏆 Leaderboard
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="border border-red-200 px-3 py-1 rounded hover:bg-red-600 hover:text-white transition"
-            >
-              🔓 Logout
+    <div className="min-h-screen flex bg-gray-50 text-gray-800">
+      {/* Sidebar */}
+      <aside className="w-72 bg-white shadow-xl flex flex-col justify-between p-6">
+        <div>
+          <h1 className="text-3xl font-extrabold text-green-700 mb-10 text-center">GC Attendance</h1>
+          <nav className="flex flex-col gap-4">
+            <button className="flex items-center gap-4 text-gray-700 font-semibold p-4 rounded-xl hover:bg-green-50 transition text-lg">
+              📊 <span>Dashboard</span>
             </button>
+            <button className="flex items-center gap-4 text-gray-700 font-semibold p-4 rounded-xl hover:bg-green-50 transition text-lg">
+              📝 <span>Attendance History</span>
+            </button>
+            <button className="flex items-center gap-4 text-gray-700 font-semibold p-4 rounded-xl hover:bg-green-50 transition text-lg">
+              👤 <span>Profile</span>
+            </button>
+          </nav>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="mt-8 w-full py-4 text-red-700 font-bold rounded-xl hover:bg-red-50 transition text-lg flex justify-center items-center gap-2"
+        >
+          🔓 Logout
+        </button>
+      </aside>
+
+      {/* Main content */}
+      <main className="flex-1 p-12">
+        <h2 className="text-4xl sm:text-5xl font-extrabold mb-10">Welcome, {user?.email}</h2>
+
+        {/* Summary cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+          <div className="bg-gradient-to-tr from-green-50 to-green-100 rounded-3xl p-8 shadow-lg flex flex-col items-center">
+            <span className="text-green-700 text-4xl font-extrabold">{totalPresent}</span>
+            <span className="text-gray-700 mt-3 text-lg font-medium">Present</span>
+          </div>
+          <div className="bg-gradient-to-tr from-red-50 to-red-100 rounded-3xl p-8 shadow-lg flex flex-col items-center">
+            <span className="text-red-700 text-4xl font-extrabold">{totalAbsent}</span>
+            <span className="text-gray-700 mt-3 text-lg font-medium">Absent</span>
+          </div>
+          <div className="bg-gradient-to-tr from-yellow-50 to-yellow-100 rounded-3xl p-8 shadow-lg flex flex-col items-center">
+            <span className="text-yellow-700 text-4xl font-extrabold">{totalMissed}</span>
+            <span className="text-gray-700 mt-3 text-lg font-medium">Missed</span>
+          </div>
+          <div className="bg-gradient-to-tr from-blue-50 to-blue-100 rounded-3xl p-8 shadow-lg flex flex-col items-center">
+            <span className="text-blue-700 text-4xl font-extrabold">{totalClasses}</span>
+            <span className="text-gray-700 mt-3 text-lg font-medium">Total Classes</span>
           </div>
         </div>
-      </nav>
 
-      {/* Content */}
-      <div className="max-w-6xl mx-auto mt-10 bg-white shadow-md rounded-xl p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold text-gray-800">
-            Collected Trash
-          </h2>
-          <div className="text-green-700 font-semibold bg-green-50 px-4 py-2 rounded-lg shadow-sm">
-            🌎 Total Collected: {trashList.length} items
+        {/* Attendance chart */}
+        <div className="bg-white rounded-3xl shadow-lg p-8 mb-12">
+          <h3 className="text-2xl sm:text-3xl font-bold mb-6">Attendance Overview</h3>
+          <div className="w-full h-[380px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={110}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value: number) => `${value} classes`} />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto rounded-lg border border-gray-200">
-          <table className="min-w-full text-sm">
-            <thead className="bg-green-100 text-green-800">
-              <tr>
-                <th className="px-4 py-2 text-left font-semibold">Type</th>
-                <th className="px-4 py-2 text-left font-semibold">Floor</th>
-                <th className="px-4 py-2 text-left font-semibold">Room</th>
-                <th className="px-4 py-2 text-left font-semibold">Time</th>
-                <th className="px-4 py-2 text-left font-semibold">Photo</th>
-                <th className="px-4 py-2 text-center font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {trashList.length === 0 ? (
+        {/* Recent classes */}
+        <div className="bg-white rounded-3xl shadow-lg p-8">
+          <h3 className="text-2xl sm:text-3xl font-bold mb-6">Recent Classes</h3>
+          <div className="overflow-x-auto rounded-2xl border border-gray-200">
+            <table className="min-w-full text-base sm:text-lg">
+              <thead className="bg-gray-50 text-gray-800 uppercase text-sm sm:text-base">
                 <tr>
-                  <td colSpan={6} className="text-center py-6 text-gray-500">
-                    No records found. Start by submitting trash!
-                  </td>
+                  <th className="px-6 py-4 text-left">Class</th>
+                  <th className="px-6 py-4 text-left">Date</th>
+                  <th className="px-6 py-4 text-left">Status</th>
+                  <th className="px-6 py-4 text-left">Notes</th>
                 </tr>
-              ) : (
-                trashList.map(item => (
-                  <tr
-                    key={item.id}
-                    className="border-t hover:bg-gray-50 transition"
-                  >
-                    <td className="px-4 py-3 text-gray-700">
-                      {item.trash_type}
-                    </td>
-                    <td className="px-4 py-3 text-gray-700">{item.floor}</td>
-                    <td className="px-4 py-3 text-gray-700">{item.room}</td>
-                    <td className="px-4 py-3 text-gray-700">
-                      {new Date(item.time).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3">
-                      {item.photo_urls?.length ? (
-                        <button
-                          onClick={() => setPhotoModal(item.photo_urls!)}
-                          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs font-medium transition"
-                        >
-                          View Photos ({item.photo_urls.length})
-                        </button>
-                      ) : (
-                        <span className="text-gray-400 text-sm">No photo</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center flex justify-center gap-2">
-                      <button
-                        onClick={() => setEditingTrash(item)}
-                        className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs font-medium transition"
+              </thead>
+              <tbody>
+                {records.slice(0, 5).map(record => (
+                  <tr key={record.id} className="border-t hover:bg-gray-50 transition">
+                    <td className="px-6 py-4 font-medium">{record.class_name}</td>
+                    <td className="px-6 py-4">{new Date(record.date).toLocaleDateString()}</td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`px-4 py-1 rounded-full text-white text-sm sm:text-base font-semibold ${
+                          record.status === "Present"
+                            ? "bg-green-600"
+                            : record.status === "Absent"
+                            ? "bg-red-600"
+                            : "bg-yellow-600"
+                        }`}
                       >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => setDeleteTrash(item)}
-                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs font-medium transition"
-                      >
-                        Delete
-                      </button>
+                        {record.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">{record.notes || "-"}</td>
+                  </tr>
+                ))}
+                {records.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="text-center py-6 text-gray-500 text-lg">
+                      No attendance records yet.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Edit Modal */}
-      {editingTrash && (
-        <TrashModal
-          editData={editingTrash}
-          onNew={updated =>
-            setTrashList(prev =>
-              prev.map(t => (t.id === updated.id ? updated : t))
-            )
-          }
-          onClose={() => setEditingTrash(null)}
-        />
-      )}
-
-      {/* Delete Confirmation */}
-      {deleteTrash && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
-          <div className="bg-white p-6 rounded-xl shadow-xl max-w-sm w-full text-center">
-            <h2 className="text-xl font-semibold mb-4">🗑️ Confirm Delete</h2>
-            <p className="mb-4 text-gray-700">
-              Are you sure you want to delete this record?
-            </p>
-            <div className="flex justify-center gap-4">
-              <button
-                onClick={handleDeleteConfirm}
-                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition"
-              >
-                Delete
-              </button>
-              <button
-                onClick={() => setDeleteTrash(null)}
-                className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400 transition"
-              >
-                Cancel
-              </button>
-            </div>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
-      )}
-
-      {/* Photo Modal */}
-      {photoModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4 py-6">
-          <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full p-6 overflow-auto relative">
-            <button
-              onClick={() => setPhotoModal(null)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-red-500 text-2xl font-bold"
-            >
-              ✕
-            </button>
-            <h2 className="text-xl font-semibold mb-6 text-center text-gray-800">
-              🖼 Trash Photos
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {photoModal.map((url, idx) => (
-                <Image
-                  key={idx}
-                  src={url}
-                  alt={`Trash ${idx + 1}`}
-                  width={400}
-                  height={300}
-                  className="w-full h-48 object-cover rounded-lg cursor-pointer shadow-sm hover:opacity-80 transition"
-                  onClick={() => window.open(url, "_blank")}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      </main>
     </div>
   );
 }

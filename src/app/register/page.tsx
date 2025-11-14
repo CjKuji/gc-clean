@@ -53,7 +53,7 @@ export default function RegisterPage() {
     }
 
     try {
-      // 1️⃣ Sign up with Supabase Auth
+      // Sign up user with Supabase
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -64,7 +64,7 @@ export default function RegisterPage() {
       const userId = authData.user?.id;
       if (!userId) throw new Error("User ID not found after signup");
 
-      // 2️⃣ Insert user metadata into profiles table (including email)
+      // Insert profile data into 'profiles' table
       const { error: dbError } = await supabase.from("profiles").insert({
         id: userId,
         first_name: formData.first_name,
@@ -72,7 +72,7 @@ export default function RegisterPage() {
         middle_initial: formData.middle_initial,
         department: formData.department,
         email: formData.email,
-        role: "user", // default role
+        role: "user",
         created_at: new Date().toISOString(),
       });
 
@@ -99,36 +99,40 @@ export default function RegisterPage() {
   };
 
   const inputClass =
-    "w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-400 focus:border-transparent outline-none transition-all text-gray-900 placeholder-gray-400";
+    "w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 placeholder-gray-400";
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-amber-50 to-white px-4">
-      <div className="flex flex-col md:flex-row bg-white/90 backdrop-blur-md shadow-2xl rounded-3xl overflow-hidden max-w-5xl w-full">
-        {/* LEFT PANEL */}
-        <div className="w-full md:w-1/2 bg-gradient-to-br from-amber-100 to-amber-200 p-12 flex flex-col justify-center">
-          <div className="flex items-center mb-6">
-            <div className="bg-gradient-to-r from-green-600 to-yellow-500 text-white font-bold rounded-xl w-14 h-14 flex items-center justify-center text-lg shadow-md">
-              GC
-            </div>
-            <div className="ml-4">
-              <h1 className="text-2xl font-bold text-green-800">Gordon College</h1>
-              <p className="text-sm text-yellow-700 font-semibold mt-1">GC-Clean</p>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center px-4 py-10">
+      <div className="bg-white/80 backdrop-blur-xl shadow-2xl max-w-4xl w-full rounded-3xl overflow-hidden flex flex-col md:flex-row">
+        
+        {/* LEFT SECTION */}
+        <div className="w-full md:w-1/2 bg-blue-600 p-10 text-white flex flex-col justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Attendance Tracker</h1>
+            <p className="opacity-90 text-sm mt-2">
+              Efficient and accurate attendance monitoring for students and staff.
+            </p>
           </div>
-          <p className="text-gray-800 text-sm leading-relaxed mt-2">
-            Register now and become part of the{" "}
-            <span className="text-green-700 font-semibold">GC-Clean initiative</span>.
-            Together, let’s build a greener and more sustainable campus community.
-          </p>
+
+          <div className="mt-10">
+            <p className="text-lg font-medium">Digital Attendance System</p>
+            <p className="text-sm opacity-80 mt-1 leading-relaxed">
+              Register now and gain access to our attendance monitoring portal.
+            </p>
+          </div>
         </div>
 
-        {/* RIGHT PANEL */}
-        <div className="w-full md:w-1/2 p-12 flex flex-col justify-center">
-          <h2 className="text-3xl font-semibold mb-6 text-center text-green-700">
-            Create an Account
+        {/* RIGHT SECTION */}
+        <div className="w-full md:w-1/2 p-10">
+          <h2 className="text-2xl font-semibold text-center text-blue-700 mb-6">
+            Create Your Account
           </h2>
 
-          {error && <p className="text-red-600 text-sm text-center mb-4">{error}</p>}
+          {error && (
+            <p className="text-red-600 text-sm mb-4 text-center bg-red-100 py-2 rounded-lg">
+              {error}
+            </p>
+          )}
 
           <form className="space-y-5" onSubmit={handleRegister}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -158,6 +162,7 @@ export default function RegisterPage() {
                 onChange={handleChange}
                 value={formData.middle_initial}
               />
+
               <select
                 name="department"
                 value={formData.department}
@@ -208,17 +213,14 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-green-600 to-yellow-500 text-white font-semibold py-3 rounded-xl shadow-lg transition transform hover:scale-105 hover:opacity-95"
+              className="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl shadow-lg hover:bg-blue-700 transition transform hover:scale-[1.02]"
             >
-              {loading ? "Registering..." : "Register"}
+              {loading ? "Creating Account..." : "Register"}
             </button>
 
-            <p className="text-center text-sm text-gray-600 mt-2">
+            <p className="text-center text-sm text-gray-600">
               Already have an account?{" "}
-              <Link
-                href="/login"
-                className="text-green-600 font-medium hover:underline"
-              >
+              <Link href="/login" className="text-blue-600 font-medium hover:underline">
                 Login here
               </Link>
             </p>
